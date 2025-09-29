@@ -1,3 +1,4 @@
+"""
 Galera Table Auto-Increment Discrepancy Checker
 -----------------------------------------------
 
