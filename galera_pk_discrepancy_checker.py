@@ -1,28 +1,29 @@
+#!/usr/bin/env python3
+
 """
-Galera Table Auto-Increment Discrepancy Checker
------------------------------------------------
+MySQL / Galera Cluster Primary Key Consistency Checker
+-------------------------------------------------------
 
 Description:
 -------------
-This script checks the maximum primary key value per table across multiple 
-MySQL hosts (or Galera nodes) for a specific date. It ensures consistency 
-of auto-increment primary key values across nodes, which is especially 
-important in multi-master or Galera cluster setups.
+This tool is especially useful in multi-master setups or Galera clusters, where
+auto-increment discrepancies or primary key inconsistencies can cause replication 
+drift or application-level issues.
 
-The script:
-1. Connects to multiple MySQL hosts concurrently.
-2. Fetches all tables in the specified database.
-3. For each table:
-   - Identifies the primary key.
-   - Checks if a filter column exists (default: created_at).
-   - Retrieves the maximum primary key value for a given date.
-4. Prints results in a PrettyTable sorted by table name, comparing all hosts.
-5. Highlights:
-   - Discrepancies across nodes (red).
-   - Missing records on the given date (yellow "N/A").
-   - Tables without the filter column.
-   - Tables without a primary key.
-   - Tables that have no record on the given date.
+The script performs the following steps:
+
+1. Detects the table's primary key (auto-increment or manual).
+2. Checks if a filter column (default: `created_at`) exists.
+3. Fetches the maximum primary key value for a given date.
+4. Compares these values across all specified hosts.
+
+Notes:
+- The primary key does not need to be auto-increment; the script simply checks the highest value present for the target date.
+- Provides summaries for:
+  - Tables missing the filter column
+  - Tables without a primary key
+  - Tables with no records for the target date
+- Helps detect discrepancies or replication drift across nodes.
 
 Dependencies:
 -------------
@@ -35,9 +36,7 @@ Install dependencies:
 
 Usage:
 ------
-python galera_pk_discrepancy_checker.py --hosts host1:3306,host2,host3:3307 \
-                                        --user myuser --pass mypass --db database \
-                                        [--column created_at] [--days-ago 1]
+python galera_pk_discrepancy_checker.py --hosts host1:3306,host2,host3:3307 --user myuser --pass mypass --db database [--column created_at] [--days-ago 1]
 
 Arguments:
 ----------
@@ -45,44 +44,34 @@ Arguments:
 --user       MySQL username.
 --pass       MySQL password.
 --db         Database name.
---column     Column to filter by (default: created_at).
+--column     Date Time Column to filter by (default: created_at).
 --days-ago   Number of days ago to check (default: 1 = yesterday).
 
-Sample output:
----------------
+Sample Output:
+--------------
 [INFO] Using filter column: created_at, date: 2025-09-28
 [INFO] Target hosts: node1:3306, node2:3306, node3:3306
-[INFO] Scanned users on node1:3306
-[INFO] Scanned users on node2:3306
-[INFO] Scanned users on node3:3306
-[INFO] Scanned orders on node1:3306
-[INFO] Scanned orders on node2:3306
-[INFO] Scanned orders on node3:3306
-[INFO] Scanned products on node1:3306
-[INFO] Scanned products on node2:3306
-[INFO] Scanned products on node3:3306
 
-+------------------+-------------+-------------+-------------+-------------+
-|    Table Name    | Primary Key | node1:3306  | node2:3306  | node3:3306  |
-+------------------+-------------+-------------+-------------+-------------+
-| orders           | order_id    | 987654      | 987654      | 987654      |
-| products         | product_id  | 44567       | 44566       | 44567       |
-| sessions         | session_id  | N/A         | N/A         | N/A         |
-| users            | user_id     | 12045       | 12045       | 12044       |
-+------------------+-------------+-------------+-------------+-------------+
++------------------+---------------+-------------+-------------+-------------+
+|    Table Name    |  Primary Key  | node1:3306  | node2:3306  | node3:3306  |
++------------------+---------------+-------------+-------------+-------------+
+| customers        | customer_id   | 12045       | 12045       | 12044       |
+| invoices         | invoice_id    | 987654      | 987654      | 987654      |
+| products         | product_id    | 44567       | 44566       | 44567       |
+| sessions         | session_id    | N/A         | N/A         | N/A         |
++------------------+---------------+-------------+-------------+-------------+
 
-Summary:
----------
 Tables missing 'created_at':
  - sessions
 
 Tables without primary key:
- - (none)
+ - logs_archive
 
 Tables with no record on 2025-09-28:
- - (none)
+ - sessions
+ - audit_trail
 
-"""
+""" 
 
 import pymysql
 from pymysql.constants import CLIENT
